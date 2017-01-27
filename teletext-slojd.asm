@@ -76,19 +76,15 @@ GUARD &7C00
     LDX #FNKEY_0
     JSR osbyte
 
-    LDA #&FF
-    STA debounce
+    \\ Turn ESCAPE into ascii
+    LDA #229
+    LDX #1
+    JSR osbyte
 
     \\ Init state
     LDA #0
     STA main_state
     STA main_menu
-
-    LDA #0
-    STA cursor_x
-    STA cursor_y
-    STA canvas_x
-    STA canvas_y
 
     LDA #LO(keystroke_buffer)
     STA keypress_ptr
@@ -102,7 +98,10 @@ GUARD &7C00
     STA &FE01
 
     \\ Init canvas
-    JSR clear_canvas
+    JSR init_canvas
+
+    \\ Init screen
+    JSR init_screen
 
     .loop
 
@@ -124,8 +123,12 @@ GUARD &7C00
 
     \\ Edit
     JSR editor_get_a_key
+
     CPX #&FF
     BEQ no_key
+
+    CPX #27
+    BEQ escape_pressed_in_editor
 
     JSR buffer_store_a_keypress
     JMP act_on_key
@@ -133,11 +136,43 @@ GUARD &7C00
     .handle_playback
     JSR buffer_get_a_keypress
 
+    CPX #27
+    BNE act_on_key
+
+    \\ Remove last escape code
+    {
+        LDA keypress_ptr
+        BNE no_carry 
+        DEC keypress_ptr+1
+        .no_carry
+        DEC keypress_ptr
+    }
+
+    LDA #0
+    STA main_state
+    JMP no_key
+ 
     \\ Act on key
     .act_on_key
     JSR key_action_on_canvas
 
     .no_key
+    JMP loop
+
+    .escape_pressed_in_editor
+    JSR buffer_store_a_keypress
+
+    JSR init_screen
+    JSR init_canvas
+
+    LDA #LO(keystroke_buffer)
+    STA keypress_ptr
+    LDA #HI(keystroke_buffer)
+    STA keypress_ptr+1
+
+    LDA #1
+    STA main_state
+
     JMP loop
 
     .handle_menu
@@ -150,19 +185,61 @@ GUARD &7C00
     RTS
 }
 
-\\ Clear canvas
-.clear_canvas
+.init_screen
 {
+    LDA #0
+    STA cursor_x
+    STA cursor_y
+
+    LDA #LO(MODE7_scr_addr)
+    STA writeptr
+    LDA #HI(MODE7_scr_addr)
+    STA writeptr+1
+
+    LDX #0
+    .yloop
+    LDY #0
+    LDA #32
+
+    .xloop
+    STA (writeptr), Y
+    INY
+    CPY #MODE7_char_width
+    BNE xloop
+
+    CLC
+    LDA writeptr
+    ADC #MODE7_char_width
+    STA writeptr
+    LDA writeptr+1
+    ADC #0
+    STA writeptr+1
+
+    INX
+    CPX #MODE7_char_height
+    BNE yloop
+
+    .return
+    RTS
+}
+
+\\ Clear canvas
+.init_canvas
+{
+    LDA #0
+    STA canvas_x
+    STA canvas_y
+
     LDA #LO(canvas_data)
     STA writeptr
     LDA #HI(canvas_data)
     STA writeptr+1
 
-    LDA #32
-
     LDX #0
     .yloop
     LDY #0
+    LDA #32
+
     .xloop
     STA (writeptr), Y
     INY
@@ -277,55 +354,6 @@ GUARD &7C00
     JSR osrdch
     TAX             ; return in X
     BCC return      ; read OK
-
-IF 0
-    \\ Try keyboard scan instead
-    LDA #&79
-    LDX #&10
-    JSR osbyte
-
-    \\ No keypressed
-    CPX #&FF
-    BEQ return
-    CPX debounce
-    BEQ no_key
-    
-    CPX #32:BNE not_f0
-    LDX #140:JMP got_key
-    .not_f0
-    CPX #71:BNE not_f1
-    LDX #141:JMP got_key
-    .not_f1
-    CPX #72:BNE not_f2
-    LDX #142:JMP got_key
-    .not_f2
-    CPX #73:BNE not_f3
-    LDX #143:JMP got_key
-    .not_f3
-    CPX #14:BNE not_f4
-    LDX #144:JMP got_key
-    .not_f4
-    CPX #74:BNE not_f5
-    LDX #145:JMP got_key
-    .not_f5
-    CPX #75:BNE not_f6
-    LDX #146:JMP got_key
-    .not_f6
-    CPX #16:BNE not_f7
-    LDX #147:JMP got_key
-    .not_f7
-    CPX #76:BNE not_f8
-    LDX #148:JMP got_key
-    .not_f8
-    CPX #77:BNE not_f9
-    LDX #149:JMP got_key
-    .not_f9
-    JMP no_key
-
-    .got_key
-    STX debounce
-    JMP return
-ENDIF
 
     \\ No key
     .no_key
