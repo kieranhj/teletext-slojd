@@ -17,9 +17,13 @@ MODE7_scr_addr = &7C00
 MODE7_char_width = 40
 MODE7_char_height = 25
 
-CANVAS_width = 40               ; can be upto 255
-CANVAS_height = 25              ; can be upto 255
+CANVAS_width = 80               ; can be upto 255
+CANVAS_height = 50              ; can be upto 255
 CANVAS_size = CANVAS_width * CANVAS_height
+
+FNKEY_0 = &C0
+FNKEY_shift_0 = &80
+FNKEY_ctrl_0 = &90
 
 STATE_edit = 0
 STATE_playback = 1
@@ -45,6 +49,8 @@ GUARD &8F
 
 .scr_ptr SKIP 2
 
+.debounce SKIP 1
+
 \\ ZP
 
 ORG &1900
@@ -65,6 +71,14 @@ GUARD &7C00
     LDX #1
     JSR osbyte
 
+    \\ Tell FN keys to report ascii from &C0
+    LDA #225
+    LDX #FNKEY_0
+    JSR osbyte
+
+    LDA #&FF
+    STA debounce
+
     \\ Init state
     LDA #0
     STA main_state
@@ -81,6 +95,12 @@ GUARD &7C00
     LDA #HI(keystroke_buffer)
     STA keypress_ptr+1
     
+    \\ Solid cursor
+    LDA #10
+    STA &FE00
+    LDA #0
+    STA &FE01
+
     \\ Init canvas
     JSR clear_canvas
 
@@ -253,16 +273,62 @@ GUARD &7C00
 \\ Get a key
 .editor_get_a_key
 {
-    \\ Use OSRDCH not direct keyboard scan?
+    \\ Use OSRDCH for easy input
     JSR osrdch
+    TAX             ; return in X
+    BCC return      ; read OK
 
-    \\ Return in X
-    TAX
+IF 0
+    \\ Try keyboard scan instead
+    LDA #&79
+    LDX #&10
+    JSR osbyte
 
-    \\ Read OK
-    BCC return
+    \\ No keypressed
+    CPX #&FF
+    BEQ return
+    CPX debounce
+    BEQ no_key
+    
+    CPX #32:BNE not_f0
+    LDX #140:JMP got_key
+    .not_f0
+    CPX #71:BNE not_f1
+    LDX #141:JMP got_key
+    .not_f1
+    CPX #72:BNE not_f2
+    LDX #142:JMP got_key
+    .not_f2
+    CPX #73:BNE not_f3
+    LDX #143:JMP got_key
+    .not_f3
+    CPX #14:BNE not_f4
+    LDX #144:JMP got_key
+    .not_f4
+    CPX #74:BNE not_f5
+    LDX #145:JMP got_key
+    .not_f5
+    CPX #75:BNE not_f6
+    LDX #146:JMP got_key
+    .not_f6
+    CPX #16:BNE not_f7
+    LDX #147:JMP got_key
+    .not_f7
+    CPX #76:BNE not_f8
+    LDX #148:JMP got_key
+    .not_f8
+    CPX #77:BNE not_f9
+    LDX #149:JMP got_key
+    .not_f9
+    JMP no_key
 
-    \\ Error (no key)
+    .got_key
+    STX debounce
+    JMP return
+ENDIF
+
+    \\ No key
+    .no_key
     LDX #&FF
 
     .return
@@ -401,6 +467,9 @@ GUARD &7C00
 
 .key_action_on_canvas
 {
+    CPX #FNKEY_0
+    BCS colour_key
+
     CPX #127
     BCS control_key
 
@@ -426,6 +495,14 @@ GUARD &7C00
 
     JSR calc_scr_ptr
     JSR set_cursor
+    JMP return
+
+    .colour_key
+    TXA
+    SEC
+    SBC #48
+    JSR write_to_screen
+    JSR write_to_canvas
 
     .return
     RTS
