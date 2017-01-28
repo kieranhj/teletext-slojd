@@ -46,10 +46,7 @@ GUARD &8F
 .canvas_y SKIP 1
 
 .canvas_addr SKIP 2
-
 .scr_ptr SKIP 2
-
-.debounce SKIP 1
 
 \\ ZP
 
@@ -276,10 +273,10 @@ GUARD &7C00
     BEQ yloop_done
     .yloop
     CLC
-    LDA #LO(canvas_data)
+    LDA canvas_addr
     ADC #CANVAS_width
     STA canvas_addr
-    LDA #HI(canvas_data)
+    LDA canvas_addr+1
     ADC #0
     STA canvas_addr+1
     DEX
@@ -540,33 +537,61 @@ GUARD &7C00
 {
     LDY cursor_x
     CPY #MODE7_char_width-1
-    BCS return
+    BCS right_edge
     INY
+    STY cursor_x
+    RTS
+
+    .right_edge
+    LDY canvas_x
+    CPY #CANVAS_width-MODE7_char_width
+    BCS return
+
+    INY
+    STY canvas_x
+    JSR copy_canvas_to_screen
 
     .return
-    STY cursor_x
     RTS
 }
 
 .move_cursor_left
 {
     LDY cursor_x
-    BEQ return
+    BEQ left_edge
     DEY
+    STY cursor_x
+    RTS
+
+    .left_edge
+    LDY canvas_x
+    BEQ return
+
+    DEY
+    STY canvas_x
+    JSR copy_canvas_to_screen
 
     .return
-    STY cursor_x
     RTS
 }
 
 .move_cursor_up
 {
     LDY cursor_y
-    BEQ return
+    BEQ top_edge
     DEY
+    STY cursor_y
+    RTS
+
+    .top_edge
+    LDY canvas_y
+    BEQ return
+
+    DEY
+    STY canvas_y
+    JSR copy_canvas_to_screen
 
     .return
-    STY cursor_y
     RTS
 }
 
@@ -574,11 +599,21 @@ GUARD &7C00
 {
     LDY cursor_y
     CPY #MODE7_char_height-1
-    BCS return
+    BCS bottom_edge
     INY
+    STY cursor_y
+    RTS
+
+    .bottom_edge
+    LDY canvas_y
+    CPY #CANVAS_height-MODE7_char_height
+    BCS return
+
+    INY
+    STY canvas_y
+    JSR copy_canvas_to_screen
 
     .return
-    STY cursor_y
     RTS
 }
 
