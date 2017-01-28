@@ -136,18 +136,8 @@ GUARD &7C00
     CPX #27
     BNE act_on_key
 
-    \\ Remove last escape code
-    {
-        LDA keypress_ptr
-        BNE no_carry 
-        DEC keypress_ptr+1
-        .no_carry
-        DEC keypress_ptr
-    }
-
-    LDA #0
-    STA main_state
-    JMP no_key
+    JSR exit_playback
+    JMP loop
  
     \\ Act on key
     .act_on_key
@@ -157,26 +147,117 @@ GUARD &7C00
     JMP loop
 
     .escape_pressed_in_editor
-    JSR buffer_store_a_keypress
 
+    JSR enter_menu
+    JMP loop
+
+    .handle_menu
+
+    JSR editor_get_a_key
+
+    CPX #27
+    BNE not_escape
+
+    \\ Toggle Menu
+
+    JSR exit_menu
+    JMP loop
+
+    .not_escape
+
+    CPX #'1':BNE not_1
+    JSR enter_playback
+    JSR exit_menu
+    JMP loop
+
+    .not_1
+
+    JMP loop
+
+    .return
+    RTS
+}
+
+.enter_playback
+{
+    LDX #27
+    JSR buffer_store_a_keypress         ; currently marks end of keypress buffer
+
+    \\ Initialise screen & canvas
     JSR init_screen
     JSR init_canvas
 
+    \\ Reset keystroke buffer pointer
     LDA #LO(keystroke_buffer)
     STA keypress_ptr
     LDA #HI(keystroke_buffer)
     STA keypress_ptr+1
 
+    \\ Enter playback state
     LDA #1
     STA main_state
 
-    JMP loop
+    .return
+    RTS
+}
 
-    .handle_menu
+.exit_playback
+{
+    \\ Remove last escape code
+    {
+        LDA keypress_ptr
+        BNE no_carry 
+        DEC keypress_ptr+1
+        .no_carry
+        DEC keypress_ptr
+    }
 
-    \\ Toggle Menu
+    \\ Enter editor
+    LDA #0
+    STA main_state
 
-    JMP loop
+    .return
+    RTS
+}
+
+.exit_menu
+{
+    JSR copy_canvas_to_screen
+    JSR calc_scr_ptr
+    JSR set_cursor
+
+    LDA #0
+    STA main_menu
+    
+    .return
+    RTS
+}
+
+.menu_text
+{
+    EQUS 30, "Teletext Slojd", 13,10
+    EQUS "1/ Playback", 13,10
+    EQUS "2/ Save keystrokes", 13,10
+    EQUS "3/ Load keystrokes", 13,10
+    EQUS "4/ New", 13,10
+    EQUB 0
+}
+
+.enter_menu
+{
+    JSR clear_screen
+
+    LDX #0
+    .text_loop
+    LDA menu_text, X
+    BEQ done_loop
+    JSR oswrch
+    INX
+    JMP text_loop
+    .done_loop
+
+    LDA #1
+    STA main_menu
 
     .return
     RTS
@@ -188,6 +269,14 @@ GUARD &7C00
     STA cursor_x
     STA cursor_y
 
+    JSR clear_screen
+
+    .return
+    RTS
+}
+
+.clear_screen
+{
     LDA #LO(MODE7_scr_addr)
     STA writeptr
     LDA #HI(MODE7_scr_addr)
