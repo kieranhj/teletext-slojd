@@ -2,6 +2,7 @@
 
 
 \\ Include bbc.h
+BRKV=&202
 BYTEV=&20A
 WRCHV=&20E
 EVNTV=&220
@@ -58,6 +59,16 @@ GUARD &7C00
 
 .main
 {
+    LDX #&FF:TXS
+
+    \\ Own error handler
+    LDX #LO(error_handler)
+    LDY #HI(error_handler)
+    SEI
+    STX BRKV
+    STY BRKV+1
+    CLI
+
     \\ MODE 7
     LDA #22
     JSR oswrch
@@ -99,7 +110,7 @@ GUARD &7C00
     \\ Init screen
     JSR init_screen
 
-    .loop
+    .^main_loop
 
     \\ Vsync
     LDA #19
@@ -136,19 +147,19 @@ GUARD &7C00
     BNE act_on_key
 
     JSR exit_playback
-    JMP loop
+    JMP main_loop
  
     \\ Act on key
     .act_on_key
     JSR key_action_on_canvas
 
     .no_key
-    JMP loop
+    JMP main_loop
 
     .escape_pressed_in_editor
 
     JSR enter_menu
-    JMP loop
+    JMP main_loop
 
     .handle_menu
 
@@ -160,7 +171,7 @@ GUARD &7C00
     \\ Toggle Menu
 
     JSR exit_menu
-    JMP loop
+    JMP main_loop
 
     .not_escape
 
@@ -170,27 +181,27 @@ GUARD &7C00
 
     JSR enter_playback
     JSR exit_menu
-    JMP loop
+    JMP main_loop
 
     .not_1
     CPX #'2':BNE not_2
     JSR save_buffer
-    JMP loop
+    JMP main_loop
 
     .not_2
     CPX #'3':BNE not_3
     JSR load_buffer
     JSR enter_playback
     JSR exit_menu
-    JMP loop
+    JMP main_loop
 
     .not_3
     CPX #'4':BNE not_4
     JSR new_are_you_sure
-    JMP loop
+    JMP main_loop
     .not_4
 
-    JMP loop
+    JMP main_loop
 
     .return
     RTS
@@ -811,7 +822,7 @@ EQUS "$.TEST", 13
 
 .menu_prompt
 {
-    EQUS 13, "> ", 0
+    EQUS 10, 13, "> ", 0
 }
 
 .input_buffer
@@ -911,8 +922,32 @@ SKIP 10
     RTS
 }
 
-\\ Clear buffer
+.error_text
+{
+    EQUS "  ERROR: ", 0
+}
 
+.error_handler
+{
+    LDX #LO(error_text)
+    LDY #HI(error_text)
+    JSR write_string
+
+    LDY &FE
+    LDX &FD
+    INX
+    BNE no_carry
+    INY
+    .no_carry
+    JSR write_string
+
+    LDX #LO(menu_prompt)
+    LDY #HI(menu_prompt)
+    JSR write_string
+
+    LDX #&FF:TXS
+    JMP main_loop
+}
 
 \\ Lookups
 
