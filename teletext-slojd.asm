@@ -78,22 +78,20 @@ GUARD &7C00
     LDX #1
     JSR osbyte
 
-    \\ Init state
-    LDA #0
-    STA main_state
-    STA main_menu
-
-    LDA #LO(keystroke_buffer)
-    STA keypress_ptr
-    LDA #HI(keystroke_buffer)
-    STA keypress_ptr+1
-    
     \\ Solid cursor
     LDA #10
     STA &FE00
     LDA #0
     STA &FE01
 
+    \\ Init state
+    LDA #0
+    STA main_state
+    STA main_menu
+
+    \\ Init keypress buffer
+    JSR init_buffer
+    
     \\ Init canvas
     JSR init_canvas
 
@@ -171,8 +169,69 @@ GUARD &7C00
     JMP loop
 
     .not_1
+    CPX #'4':BNE not_4
+    JSR are_you_sure
+    JMP loop
+    .not_4
 
     JMP loop
+
+    .return
+    RTS
+}
+
+.confirm_text
+{
+    EQUS "Are you sure? ", 0
+}
+
+.confirm_erase
+{
+    EQUS 13, "               ", 13, "> ", 0
+}
+
+
+.are_you_sure
+{
+    LDX #0
+    .loop
+    LDA confirm_text, X
+    BEQ done_loop
+    JSR oswrch
+    INX
+    JMP loop
+    .done_loop
+
+    JSR editor_get_a_key
+    CPX #'Y'
+    BNE return
+
+    \\ New
+    JSR init_buffer
+    JSR init_canvas
+    JSR init_screen
+    JSR exit_menu
+    RTS
+
+    .return
+    LDX #0
+    .loop2
+    LDA confirm_erase, X
+    BEQ done_loop2
+    JSR oswrch
+    INX
+    JMP loop2
+    .done_loop2
+
+    RTS
+}
+
+.init_buffer
+{
+    LDA #LO(keystroke_buffer)
+    STA keypress_ptr
+    LDA #HI(keystroke_buffer)
+    STA keypress_ptr+1
 
     .return
     RTS
@@ -240,6 +299,7 @@ GUARD &7C00
     EQUS "2/ Save keystrokes", 13,10
     EQUS "3/ Load keystrokes", 13,10
     EQUS "4/ New", 13,10
+    EQUS "> "
     EQUB 0
 }
 
