@@ -164,11 +164,26 @@ GUARD &7C00
     .not_escape
 
     CPX #'1':BNE not_1
+    LDX #27
+    JSR buffer_store_a_keypress         ; currently marks end of keypress buffer
+
     JSR enter_playback
     JSR exit_menu
     JMP loop
 
     .not_1
+    CPX #'2':BNE not_2
+    JSR save_buffer
+    JMP loop
+
+    .not_2
+    CPX #'3':BNE not_3
+    JSR load_buffer
+    JSR enter_playback
+    JSR exit_menu
+    JMP loop
+
+    .not_3
     CPX #'4':BNE not_4
     JSR are_you_sure
     JMP loop
@@ -239,9 +254,6 @@ GUARD &7C00
 
 .enter_playback
 {
-    LDX #27
-    JSR buffer_store_a_keypress         ; currently marks end of keypress buffer
-
     \\ Initialise screen & canvas
     JSR init_screen
     JSR init_canvas
@@ -260,16 +272,22 @@ GUARD &7C00
     RTS
 }
 
+.remove_last_keypress
+{
+    LDA keypress_ptr
+    BNE no_carry 
+    DEC keypress_ptr+1
+    .no_carry
+    DEC keypress_ptr
+
+    RTS
+}
+
+
 .exit_playback
 {
     \\ Remove last escape code
-    {
-        LDA keypress_ptr
-        BNE no_carry 
-        DEC keypress_ptr+1
-        .no_carry
-        DEC keypress_ptr
-    }
+    JSR remove_last_keypress
 
     \\ Enter editor
     LDA #0
@@ -768,9 +786,69 @@ GUARD &7C00
 
 \\ Menu actions
 
+.filename
+EQUS "$.TEST", 13
+
+.osfile_params
+{
+    EQUW filename
+    EQUD 0                  ; load address
+    EQUD 0                  ; exec address
+    EQUD keystroke_buffer   ; start addr
+    EQUD 0                  ; end addr
+}
+
 \\ Save buffer
+.save_buffer
+{
+    LDX #27
+    JSR buffer_store_a_keypress         ; currently marks end of keypress buffer
+
+	LDA #LO(keystroke_buffer)
+    STA osfile_params + 2
+	LDA #HI(keystroke_buffer)
+    STA osfile_params + 3
+
+	LDA #LO(keystroke_buffer)
+    STA osfile_params + 10
+	LDA #HI(keystroke_buffer)
+    STA osfile_params + 11
+
+    LDA keypress_ptr
+    STA osfile_params + 14
+    LDA keypress_ptr+1
+    STA osfile_params + 15
+    
+	LDX #LO(osfile_params)
+	LDY #HI(osfile_params)
+    LDA #0
+    JSR osfile
+
+    JSR remove_last_keypress
+
+    .return
+    RTS
+}
 
 \\ Load buffer
+.load_buffer
+{
+    LDA #LO(keystroke_buffer)
+    STA osfile_params + 2
+    LDA #HI(keystroke_buffer)
+    STA osfile_params + 3
+
+	LDA #0
+	STA osfile_params + 6
+    
+	LDX #LO(osfile_params)
+	LDY #HI(osfile_params)
+	LDA #&FF
+    JSR osfile
+
+    .return
+    RTS
+}
 
 \\ Clear buffer
 
