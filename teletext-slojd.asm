@@ -11,6 +11,7 @@ osrdch=&FFE0
 oswrch=&FFEE
 osword=&FFF1
 osbyte=&FFF4
+oscli=&FFF7
 osfile=&FFDD
 
 argv = &F2
@@ -70,10 +71,7 @@ GUARD &7C00
     CLI
 
     \\ MODE 7
-    LDA #22
-    JSR oswrch
-    LDA #7
-    JSR oswrch
+    JSR clear_screen
 
     \\ Turn off cursor editing
     LDA #4
@@ -89,12 +87,6 @@ GUARD &7C00
     LDA #229
     LDX #1
     JSR osbyte
-
-    \\ Solid cursor
-    LDA #10
-    STA &FE00
-    LDA #0
-    STA &FE01
 
     \\ Init state
     LDA #0
@@ -199,7 +191,12 @@ GUARD &7C00
     CPX #'4':BNE not_4
     JSR new_are_you_sure
     JMP main_loop
+
     .not_4
+    CPX #'*':BNE not_star
+    JSR star_command
+    JMP main_loop
+    .not_star
 
     JMP main_loop
 
@@ -209,12 +206,7 @@ GUARD &7C00
 
 .confirm_text
 {
-    EQUS "Are you sure? ", 0
-}
-
-.confirm_erase
-{
-    EQUS 13, "               ", 13, "> ", 0
+    EQUS "New canvas, are you sure? ", 0
 }
 
 .new_are_you_sure
@@ -224,6 +216,7 @@ GUARD &7C00
     JSR write_string
 
     JSR editor_get_a_key
+    JSR oswrch
     CPX #'Y'
     BNE return
 
@@ -235,8 +228,8 @@ GUARD &7C00
     RTS
 
     .return
-    LDX #LO(confirm_erase)
-    LDY #HI(confirm_erase)
+    LDX #LO(menu_prompt)
+    LDY #HI(menu_prompt)
     JSR write_string
 
     RTS
@@ -300,6 +293,7 @@ GUARD &7C00
 
 .exit_menu
 {
+    JSR clear_screen
     JSR copy_canvas_to_screen
     JSR calc_scr_ptr
     JSR set_cursor
@@ -314,13 +308,15 @@ GUARD &7C00
 .menu_text
 {
     EQUS 30, "Teletext Slojd", 13,10
-    EQUS "1/ Playback", 13,10
-    EQUS "2/ Save keystrokes", 13,10
-    EQUS "3/ Load keystrokes", 13,10
-    EQUS "4/ New", 13,10
-    EQUS "*/ Command", 13,10
-    EQUS "> "
-    EQUB 0
+    EQUS "1) Playback", 13,10
+    EQUS "2) Save keystrokes", 13,10
+    EQUS "3) Load keystrokes", 13,10
+    EQUS "4) New", 13,10
+    EQUS "*) Command"
+}
+.menu_prompt
+{
+    EQUS 10, 13, " > ", 0
 }
 
 .write_string
@@ -370,33 +366,16 @@ GUARD &7C00
 
 .clear_screen
 {
-    LDA #LO(MODE7_scr_addr)
-    STA writeptr
-    LDA #HI(MODE7_scr_addr)
-    STA writeptr+1
+    LDA #22
+    JSR oswrch
+    LDA #7
+    JSR oswrch
 
-    LDX #0
-    .yloop
-    LDY #0
-    LDA #32
-
-    .xloop
-    STA (writeptr), Y
-    INY
-    CPY #MODE7_char_width
-    BNE xloop
-
-    CLC
-    LDA writeptr
-    ADC #MODE7_char_width
-    STA writeptr
-    LDA writeptr+1
-    ADC #0
-    STA writeptr+1
-
-    INX
-    CPX #MODE7_char_height
-    BNE yloop
+    \\ Solid cursor
+    LDA #10
+    STA &FE00
+    LDA #0
+    STA &FE01
 
     .return
     RTS
@@ -820,18 +799,18 @@ EQUS "$.TEST", 13
     EQUS "Save filename? ", 0
 }
 
-.menu_prompt
+.done_text
 {
-    EQUS 10, 13, "> ", 0
+    EQUS "   Success!", 0
 }
 
 .input_buffer
-SKIP 10
+SKIP 30
 
 .input_params
 {
     EQUW input_buffer
-    EQUB 9
+    EQUB 29
     EQUB ' '
     EQUB 127
 }
@@ -874,6 +853,10 @@ SKIP 10
 
     JSR remove_last_keypress
 
+    LDX #LO(done_text)
+    LDY #HI(done_text)
+    JSR write_string
+
     .return
     LDX #LO(menu_prompt)
     LDY #HI(menu_prompt)
@@ -914,6 +897,10 @@ SKIP 10
 	LDA #&FF
     JSR osfile
 
+    LDX #LO(done_text)
+    LDY #HI(done_text)
+    JSR write_string
+
     .return
     LDX #LO(menu_prompt)
     LDY #HI(menu_prompt)
@@ -924,7 +911,7 @@ SKIP 10
 
 .error_text
 {
-    EQUS "  ERROR: ", 0
+    EQUS "   ERROR: ", 0
 }
 
 .error_handler
@@ -947,6 +934,29 @@ SKIP 10
 
     LDX #&FF:TXS
     JMP main_loop
+}
+
+.star_command
+{
+    TXA:JSR oswrch
+
+    LDA #0
+    LDX #LO(input_params)
+    LDY #HI(input_params)
+    JSR osword
+
+    BCS return
+
+    LDX #LO(input_buffer)
+    LDY #HI(input_buffer)
+    JSR oscli
+
+    .return
+    LDX #LO(menu_prompt)
+    LDY #HI(menu_prompt)
+    JSR write_string
+
+    RTS
 }
 
 \\ Lookups
