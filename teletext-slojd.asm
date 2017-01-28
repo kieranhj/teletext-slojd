@@ -8,6 +8,7 @@ EVNTV=&220
 
 osrdch=&FFE0
 oswrch=&FFEE
+osword=&FFF1
 osbyte=&FFF4
 osfile=&FFDD
 
@@ -185,7 +186,7 @@ GUARD &7C00
 
     .not_3
     CPX #'4':BNE not_4
-    JSR are_you_sure
+    JSR new_are_you_sure
     JMP loop
     .not_4
 
@@ -205,17 +206,11 @@ GUARD &7C00
     EQUS 13, "               ", 13, "> ", 0
 }
 
-
-.are_you_sure
+.new_are_you_sure
 {
-    LDX #0
-    .loop
-    LDA confirm_text, X
-    BEQ done_loop
-    JSR oswrch
-    INX
-    JMP loop
-    .done_loop
+    LDX #LO(confirm_text)
+    LDY #HI(confirm_text)
+    JSR write_string
 
     JSR editor_get_a_key
     CPX #'Y'
@@ -229,14 +224,9 @@ GUARD &7C00
     RTS
 
     .return
-    LDX #0
-    .loop2
-    LDA confirm_erase, X
-    BEQ done_loop2
-    JSR oswrch
-    INX
-    JMP loop2
-    .done_loop2
+    LDX #LO(confirm_erase)
+    LDY #HI(confirm_erase)
+    JSR write_string
 
     RTS
 }
@@ -317,22 +307,36 @@ GUARD &7C00
     EQUS "2/ Save keystrokes", 13,10
     EQUS "3/ Load keystrokes", 13,10
     EQUS "4/ New", 13,10
+    EQUS "*/ Command", 13,10
     EQUS "> "
     EQUB 0
+}
+
+.write_string
+{
+    STX loop+1
+    STY loop+2
+
+    LDX #0
+    .loop
+    LDA menu_text, X
+    BEQ done_loop
+    JSR oswrch
+    INX
+    JMP loop
+    .done_loop
+    
+    .return
+    RTS
 }
 
 .enter_menu
 {
     JSR clear_screen
 
-    LDX #0
-    .text_loop
-    LDA menu_text, X
-    BEQ done_loop
-    JSR oswrch
-    INX
-    JMP text_loop
-    .done_loop
+    LDX #LO(menu_text)
+    LDY #HI(menu_text)
+    JSR write_string
 
     LDA #1
     STA main_menu
@@ -791,7 +795,7 @@ EQUS "$.TEST", 13
 
 .osfile_params
 {
-    EQUW filename
+    EQUW input_buffer
     EQUD 0                  ; load address
     EQUD 0                  ; exec address
     EQUD keystroke_buffer   ; start addr
@@ -799,8 +803,41 @@ EQUS "$.TEST", 13
 }
 
 \\ Save buffer
+
+.save_text
+{
+    EQUS "Save filename? ", 0
+}
+
+.menu_prompt
+{
+    EQUS 13, "> ", 0
+}
+
+.input_buffer
+SKIP 10
+
+.input_params
+{
+    EQUW input_buffer
+    EQUB 9
+    EQUB ' '
+    EQUB 127
+}
+
 .save_buffer
 {
+    LDX #LO(save_text)
+    LDY #HI(save_text)
+    JSR write_string
+    
+    LDA #0
+    LDX #LO(input_params)
+    LDY #HI(input_params)
+    JSR osword
+
+    BCS return
+
     LDX #27
     JSR buffer_store_a_keypress         ; currently marks end of keypress buffer
 
@@ -827,12 +864,32 @@ EQUS "$.TEST", 13
     JSR remove_last_keypress
 
     .return
+    LDX #LO(menu_prompt)
+    LDY #HI(menu_prompt)
+    JSR write_string
+
     RTS
 }
 
 \\ Load buffer
+.load_text
+{
+    EQUS "Load filename? ", 0
+}
+
 .load_buffer
 {
+    LDX #LO(load_text)
+    LDY #HI(load_text)
+    JSR write_string
+    
+    LDA #0
+    LDX #LO(input_params)
+    LDY #HI(input_params)
+    JSR osword
+
+    BCS return
+
     LDA #LO(keystroke_buffer)
     STA osfile_params + 2
     LDA #HI(keystroke_buffer)
@@ -847,6 +904,10 @@ EQUS "$.TEST", 13
     JSR osfile
 
     .return
+    LDX #LO(menu_prompt)
+    LDY #HI(menu_prompt)
+    JSR write_string
+
     RTS
 }
 
