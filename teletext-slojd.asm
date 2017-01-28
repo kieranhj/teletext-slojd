@@ -51,6 +51,8 @@ GUARD &8F
 .canvas_addr SKIP 2
 .scr_ptr SKIP 2
 
+.key SKIP 1
+
 \\ ZP
 
 ORG &1900
@@ -651,6 +653,32 @@ GUARD &7C00
     RTS
 }
 
+.convert_to_char
+{
+    STX key
+    LDY #0
+
+    .loop
+    LDA map_key_to_graphic, Y
+    CMP #&FF
+    BEQ not_found
+
+    INY
+    CMP key
+    BEQ found
+
+    INY
+    JMP loop
+
+    .found
+    LDA map_key_to_graphic, Y
+    RTS
+
+    .not_found
+    LDA key
+    RTS
+}
+
 .key_action_on_canvas
 {
     CPX #FNKEY_0
@@ -660,7 +688,9 @@ GUARD &7C00
     BCS control_key
 
     \\ Content key
-    TXA
+    ;TXA
+    JSR convert_to_char
+
     JSR write_to_screen
     JSR write_to_canvas
     JMP return
@@ -960,6 +990,125 @@ SKIP 30
 }
 
 \\ Lookups
+
+PIXEL_TL=1
+PIXEL_TR=2
+PIXEL_ML=4
+PIXEL_MR=8
+PIXEL_BL=16
+PIXEL_BR=64
+ALL_PIXELS=PIXEL_TL+PIXEL_TR+PIXEL_ML+PIXEL_MR+PIXEL_BL+PIXEL_BR
+
+MACRO KEY_TO_CHAR key, pixel
+{
+    EQUB key, 32 OR (pixel)
+}
+ENDMACRO
+
+MACRO KEY_TO_INVCHAR key, pixel
+{
+    EQUB key, 32 OR (pixel EOR ALL_PIXELS)
+}
+ENDMACRO
+
+.map_key_to_graphic
+{
+    \\ Zero + 6 pixels
+    KEY_TO_CHAR ' ', 0
+    KEY_TO_INVCHAR '@', 0
+    
+    \\ One pixels
+    KEY_TO_CHAR 'Q', PIXEL_TL
+    KEY_TO_CHAR 'A', PIXEL_ML
+    KEY_TO_CHAR 'Z', PIXEL_BL
+    KEY_TO_CHAR 'W', PIXEL_TR
+    KEY_TO_CHAR 'S', PIXEL_MR
+    KEY_TO_CHAR 'X', PIXEL_BR
+
+    \\ Five pixels
+    KEY_TO_INVCHAR 'q', PIXEL_TL
+    KEY_TO_INVCHAR 'a', PIXEL_ML
+    KEY_TO_INVCHAR 'z', PIXEL_BL
+    KEY_TO_INVCHAR 'w', PIXEL_TR
+    KEY_TO_INVCHAR 's', PIXEL_MR
+    KEY_TO_INVCHAR 'x', PIXEL_BR
+
+    \\ Two pixels
+    KEY_TO_CHAR 'E', PIXEL_TL+PIXEL_TR
+    KEY_TO_CHAR 'D', PIXEL_ML+PIXEL_MR
+    KEY_TO_CHAR 'C', PIXEL_BL+PIXEL_BR
+
+    KEY_TO_CHAR 'R', PIXEL_TL+PIXEL_ML
+    KEY_TO_CHAR 'F', PIXEL_TL+PIXEL_BL
+    KEY_TO_CHAR 'V', PIXEL_ML+PIXEL_BL
+
+    KEY_TO_CHAR 'T', PIXEL_TR+PIXEL_MR
+    KEY_TO_CHAR 'G', PIXEL_TR+PIXEL_BR
+    KEY_TO_CHAR 'B', PIXEL_MR+PIXEL_BR
+
+    KEY_TO_CHAR 'Y', PIXEL_TL+PIXEL_MR
+    KEY_TO_CHAR 'H', PIXEL_TL+PIXEL_BR
+    KEY_TO_CHAR 'N', PIXEL_BL+PIXEL_MR
+
+    KEY_TO_CHAR 'U', PIXEL_TR+PIXEL_ML
+    KEY_TO_CHAR 'J', PIXEL_TR+PIXEL_BL
+    KEY_TO_CHAR 'M', PIXEL_BR+PIXEL_ML
+
+    \\ Four pixels
+    KEY_TO_INVCHAR 'e', PIXEL_TL+PIXEL_TR
+    KEY_TO_INVCHAR 'd', PIXEL_ML+PIXEL_MR
+    KEY_TO_INVCHAR 'c', PIXEL_BL+PIXEL_BR
+
+    KEY_TO_INVCHAR 'r', PIXEL_TL+PIXEL_ML
+    KEY_TO_INVCHAR 'f', PIXEL_TL+PIXEL_BL
+    KEY_TO_INVCHAR 'v', PIXEL_ML+PIXEL_BL
+
+    KEY_TO_INVCHAR 't', PIXEL_TR+PIXEL_MR
+    KEY_TO_INVCHAR 'g', PIXEL_TR+PIXEL_BR
+    KEY_TO_INVCHAR 'b', PIXEL_MR+PIXEL_BR
+
+    KEY_TO_INVCHAR 'y', PIXEL_TL+PIXEL_MR
+    KEY_TO_INVCHAR 'h', PIXEL_TL+PIXEL_BR
+    KEY_TO_INVCHAR 'n', PIXEL_BL+PIXEL_MR
+
+    KEY_TO_INVCHAR 'u', PIXEL_TR+PIXEL_ML
+    KEY_TO_INVCHAR 'j', PIXEL_TR+PIXEL_BL
+    KEY_TO_INVCHAR 'm', PIXEL_BR+PIXEL_ML
+
+    \\ Three pixels
+
+    KEY_TO_CHAR 'I', PIXEL_TR+PIXEL_TL+PIXEL_ML         ; top left arrow
+    KEY_TO_INVCHAR 'i', PIXEL_TR+PIXEL_TL+PIXEL_ML      ; bottom right arrow
+
+    KEY_TO_CHAR 'O', PIXEL_TR+PIXEL_TL+PIXEL_MR         ; top right arrow
+    KEY_TO_INVCHAR 'i', PIXEL_TR+PIXEL_TL+PIXEL_MR      ; bottom left arrow
+
+    KEY_TO_CHAR 'K', PIXEL_TL+PIXEL_ML+PIXEL_MR         ; mid left down arrow
+    KEY_TO_INVCHAR 'k', PIXEL_TL+PIXEL_ML+PIXEL_MR      ; invert
+
+    KEY_TO_CHAR 'L', PIXEL_TR+PIXEL_ML+PIXEL_MR         ; mid right down arrow
+    KEY_TO_INVCHAR 'l', PIXEL_TR+PIXEL_ML+PIXEL_MR      ; invert
+
+    KEY_TO_CHAR ',', PIXEL_MR+PIXEL_ML+PIXEL_BL         ; mid left up arrow
+    KEY_TO_INVCHAR '<', PIXEL_MR+PIXEL_ML+PIXEL_BL      ; invert
+
+    KEY_TO_CHAR '.', PIXEL_MR+PIXEL_ML+PIXEL_BR         ; mid right up arrow
+    KEY_TO_INVCHAR '>', PIXEL_MR+PIXEL_ML+PIXEL_BR      ; invert
+
+    KEY_TO_CHAR 'P', PIXEL_TR+PIXEL_ML+PIXEL_BL         ; top left curve
+    KEY_TO_INVCHAR 'p', PIXEL_TR+PIXEL_ML+PIXEL_BL         ; invert
+
+    KEY_TO_CHAR ';', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; left face
+    KEY_TO_INVCHAR '+', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; invert
+            
+    KEY_TO_CHAR '/', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; top right curve
+    KEY_TO_INVCHAR '?', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; invert
+
+    KEY_TO_CHAR '*', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
+    KEY_TO_INVCHAR ':', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
+
+    EQUB &FF
+}
 
 \\ Mapping of keys to screen?
 \\ If using actual key presses then need to store combinations, i.e. CTRL+
