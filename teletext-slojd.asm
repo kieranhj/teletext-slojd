@@ -25,12 +25,51 @@ CANVAS_width = 80               ; can be upto 255
 CANVAS_height = 50              ; can be upto 255
 CANVAS_size = CANVAS_width * CANVAS_height
 
+KEY_cursor_up = &8B
+KEY_cursor_down = &8A
+KEY_cursor_left = &88
+KEY_cursor_right = &89
+
 FNKEY_0 = &C0
-FNKEY_shift_0 = &80
+FNKEY_1 = &C1
+FNKEY_2 = &C2
+FNKEY_3 = &C3
+FNKEY_4 = &C4
+FNKEY_5 = &C5
+FNKEY_6 = &C6
+FNKEY_7 = &C7
+FNKEY_8 = &C8
+FNKEY_9 = &C9
+
+FNKEY_shift_0 = &E0
+FNKEY_shift_1 = &E1
+FNKEY_shift_2 = &E2
+FNKEY_shift_3 = &E3
+FNKEY_shift_4 = &E4
+FNKEY_shift_5 = &E5
+FNKEY_shift_6 = &E6
+FNKEY_shift_7 = &E7
+FNKEY_shift_8 = &E8
+FNKEY_shift_9 = &E9
+
 FNKEY_ctrl_0 = &90
 
-STATE_edit = 0
-STATE_playback = 1
+TELETEXT_graphic_red = 145
+TELETEXT_graphic_green = 146
+TELETEXT_graphic_yellow = 147
+TELETEXT_graphic_blue = 148
+TELETEXT_graphic_magenta = 149
+TELETEXT_graphic_cyan = 150
+TELETEXT_graphic_white = 151
+
+TELETEXT_alpha_red = 129
+TELETEXT_alpha_green = 130
+TELETEXT_alpha_yellow = 131
+TELETEXT_alpha_blue = 132
+TELETEXT_alpha_magenta = 133
+TELETEXT_alpha_cyan = 134
+TELETEXT_alpha_white = 135
+
 
 ORG &70
 GUARD &8F
@@ -38,10 +77,10 @@ GUARD &8F
 .readptr SKIP 2
 .writeptr SKIP 2
 
-.main_menu SKIP 1
-.main_state SKIP 1              ; edit, playback
+.main_menu SKIP 1               ; 0=not enabled, 1=enabled
+.main_state SKIP 1              ; 0=edit, 1=playback
 
-.keypress_ptr SKIP 2
+.keypress_ptr SKIP 2            ; pointer into keypress buffer
 
 .cursor_x SKIP 1
 .cursor_y SKIP 1
@@ -49,10 +88,11 @@ GUARD &8F
 .canvas_x SKIP 1
 .canvas_y SKIP 1
 
-.canvas_addr SKIP 2
-.cursor_addr SKIP 2
+.canvas_addr SKIP 2             ; address of top-left corner of canvas
 
-.key SKIP 1
+.cursor_addr SKIP 2             ; screen address of cursor
+.cursor_mode SKIP 1             ; 0=graphics, non-zero=text
+
 
 \\ ZP
 
@@ -73,22 +113,28 @@ GUARD &7C00
     STY BRKV+1
     CLI
 
-    \\ MODE 7
-    JSR clear_screen
-
     \\ Turn off cursor editing
     LDA #4
     LDX #1
+    LDY #0
     JSR osbyte
 
     \\ Tell FN keys to report ascii from &C0
     LDA #225
     LDX #FNKEY_0
+    LDY #0
+    JSR osbyte
+
+    \\ Tell Shift-FN keys to report ascii from &D0
+    LDA #226
+    LDX #FNKEY_shift_0
+    LDY #0
     JSR osbyte
 
     \\ Turn ESCAPE into ascii
     LDA #229
     LDX #1
+    LDY #0
     JSR osbyte
 
     \\ Init state
@@ -316,8 +362,7 @@ GUARD &7C00
 {
     JSR clear_screen
     JSR copy_canvas_to_screen
-    JSR calc_cursor_addr
-    JSR set_cursor
+    JSR update_cursor
 
     LDA #0
     STA main_menu
@@ -380,6 +425,7 @@ GUARD &7C00
     STA cursor_y
 
     JSR clear_screen
+    JSR update_cursor
 
     .return
     RTS
@@ -391,12 +437,6 @@ GUARD &7C00
     JSR oswrch
     LDA #7
     JSR oswrch
-
-    \\ Solid cursor
-    LDA #10
-    STA &FE00
-    LDA #0
-    STA &FE01
 
     .return
     RTS
@@ -627,8 +667,63 @@ GUARD &7C00
     RTS
 }
 
-.set_cursor
+.update_cursor
 {
+    \\ Character row adddress
+    LDY cursor_y
+    LDA mode7_addr_y_LO, Y
+    STA readptr
+    LDA mode7_addr_y_HI, Y
+    STA readptr+1
+    
+    \\ Cursor type
+    LDX #18             ; line
+
+    LDY cursor_x
+    .loop
+    LDA (readptr), Y
+    CMP #TELETEXT_graphic_red
+    BCC try_alpha
+    CMP #TELETEXT_graphic_white+1
+    BCS try_alpha
+
+    \\ Found a graphics code
+    LDX #0
+    JMP scanned_line
+
+    .try_alpha
+    CMP #TELETEXT_alpha_red
+    BCC continue
+    CMP #TELETEXT_alpha_white+1
+    BCS continue
+
+    \\ Found an alpha code
+    JMP scanned_line
+
+    .continue
+    CPY #0
+    BEQ scanned_line
+    DEY
+    JMP loop
+
+    .scanned_line
+
+    \\ Solid cursor
+    LDA #10
+    STA &FE00
+    STX cursor_mode
+    STX &FE01
+
+    \\ Calc exact cursor address
+    CLC
+    LDA readptr
+    ADC cursor_x
+    STA cursor_addr
+    LDA readptr+1
+    ADC #0
+    STA cursor_addr+1
+
+    \\ Set cursor position
     LDA #14
     STA &FE00
     SEC
@@ -648,83 +743,124 @@ GUARD &7C00
 
 .write_to_screen
 {
-    PHA
+    \\ So we know where to write
+    PHA:PHA
     JSR calc_cursor_addr
     PLA
 
+    \\ Write
     LDY #0
     STA (cursor_addr), Y
 
+    \\ Update cursor type
+    JSR update_cursor
+
+    PLA
     .return
     RTS
 }
 
-.convert_to_char
+.map_key_to_char
 {
-    STX key
+    STX key_value+1
     LDY #0
 
     .loop
-    LDA map_key_to_graphic, Y
+    LDA map_char_table, Y
     CMP #&FF
     BEQ not_found
 
     INY
-    CMP key
+    .key_value
+    CMP #0
     BEQ found
 
     INY
     JMP loop
 
     .found
-    LDA map_key_to_graphic, Y
-    RTS
+    LDA map_char_table, Y
+    TAX
 
     .not_found
-    LDA key
+    RTS
+}
+
+.map_key_to_code
+{
+    STX key_value+1
+    LDY #0
+
+    .loop
+    LDA map_code_table, Y
+    CMP #&FF
+    BEQ not_found
+
+    INY
+    .key_value
+    CMP #0
+    BEQ found
+
+    INY
+    JMP loop
+
+    .found
+    LDA map_code_table, Y
+
+    .not_found
     RTS
 }
 
 .key_action_on_canvas
 {
-    CPX #FNKEY_0
-    BCS colour_key
+    \\ Check for special control keys
+    CPX #&90
+    BCS content_key
 
-    CPX #127
+    CPX #&7F
     BCS control_key
 
     \\ Content key
-    ;TXA
-    JSR convert_to_char
+    .content_key
+    \\ Check keys for Teletext content codes first
+    JSR map_key_to_code
+    CMP #&FF
+    BNE write_char
 
+    \\ If not then its a regular key
+
+    \\ If we're in alpha mode just write it as is
+    LDA cursor_mode
+    BNE alpha_mapping
+
+    \\ If we're in graphics mode do fancy mapping
+    JSR map_key_to_char
+
+    .alpha_mapping
+    TXA
+
+    .write_char
     JSR write_to_screen
     JSR write_to_canvas
     JMP return
 
+    \\ Control keys, cursor etc.
     .control_key
-    CPX #139:BNE not_up
+    CPX #KEY_cursor_up:BNE not_up
     JSR move_cursor_up
     .not_up
-    CPX #138:BNE not_down
+    CPX #KEY_cursor_down:BNE not_down
     JSR move_cursor_down
     .not_down
-    CPX #136:BNE not_left
+    CPX #KEY_cursor_left:BNE not_left
     JSR move_cursor_left
     .not_left
-    CPX #137:BNE not_right
+    CPX #KEY_cursor_right:BNE not_right
     JSR move_cursor_right
     .not_right
 
-    JSR calc_cursor_addr
-    JSR set_cursor
+    JSR update_cursor
     JMP return
-
-    .colour_key
-    TXA
-    SEC
-    SBC #48
-    JSR write_to_screen
-    JSR write_to_canvas
 
     .return
     RTS
@@ -1015,7 +1151,13 @@ MACRO KEY_TO_INVCHAR key, pixel
 }
 ENDMACRO
 
-.map_key_to_graphic
+MACRO KEY_TO_CODE key, code
+{
+    EQUB key, code
+}
+ENDMACRO
+
+.map_char_table
 {
     \\ Zero + 6 pixels
     KEY_TO_CHAR ' ', 0
@@ -1110,6 +1252,28 @@ ENDMACRO
 
     KEY_TO_CHAR '[', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
     KEY_TO_INVCHAR ']', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; right vertical bar
+
+    EQUB &FF
+}
+
+.map_code_table
+{
+    \\ FN keys
+    KEY_TO_CODE FNKEY_1, TELETEXT_graphic_red
+    KEY_TO_CODE FNKEY_2, TELETEXT_graphic_green
+    KEY_TO_CODE FNKEY_3, TELETEXT_graphic_yellow
+    KEY_TO_CODE FNKEY_4, TELETEXT_graphic_blue
+    KEY_TO_CODE FNKEY_5, TELETEXT_graphic_magenta
+    KEY_TO_CODE FNKEY_6, TELETEXT_graphic_cyan
+    KEY_TO_CODE FNKEY_7, TELETEXT_graphic_white
+
+    KEY_TO_CODE FNKEY_shift_1, TELETEXT_alpha_red
+    KEY_TO_CODE FNKEY_shift_2, TELETEXT_alpha_green
+    KEY_TO_CODE FNKEY_shift_3, TELETEXT_alpha_yellow
+    KEY_TO_CODE FNKEY_shift_4, TELETEXT_alpha_blue
+    KEY_TO_CODE FNKEY_shift_5, TELETEXT_alpha_magenta
+    KEY_TO_CODE FNKEY_shift_6, TELETEXT_alpha_cyan
+    KEY_TO_CODE FNKEY_shift_7, TELETEXT_alpha_white
 
     EQUB &FF
 }
