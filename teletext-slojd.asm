@@ -1,5 +1,6 @@
 \\ MODE 7 keystroke logging editor
 
+_LOAD_ON_START = FALSE
 
 \\ Include bbc.h
 BRKV=&202
@@ -49,7 +50,7 @@ GUARD &8F
 .canvas_y SKIP 1
 
 .canvas_addr SKIP 2
-.scr_ptr SKIP 2
+.cursor_addr SKIP 2
 
 .key SKIP 1
 
@@ -103,6 +104,24 @@ GUARD &7C00
 
     \\ Init screen
     JSR init_screen
+
+    IF _LOAD_ON_START
+    LDA #LO(keystroke_buffer)
+    STA osfile_params + 2
+    LDA #HI(keystroke_buffer)
+    STA osfile_params + 3
+
+	LDA #0
+	STA osfile_params + 6
+    
+	LDX #LO(osfile_params)
+	LDY #HI(osfile_params)
+	LDA #&FF
+    JSR osfile
+
+    LDA #1
+    STA main_state      ; playback!
+    ENDIF
 
     .^main_loop
 
@@ -297,7 +316,7 @@ GUARD &7C00
 {
     JSR clear_screen
     JSR copy_canvas_to_screen
-    JSR calc_scr_ptr
+    JSR calc_cursor_addr
     JSR set_cursor
 
     LDA #0
@@ -593,29 +612,16 @@ GUARD &7C00
     RTS
 }
 
-.calc_scr_ptr
+.calc_cursor_addr
 {
+    LDY cursor_y
     CLC
-    LDA #LO(MODE7_scr_addr)
+    LDA mode7_addr_y_LO, Y
     ADC cursor_x
-    STA scr_ptr
-    LDA #HI(MODE7_scr_addr)
+    STA cursor_addr
+    LDA mode7_addr_y_HI, Y
     ADC #0
-    STA scr_ptr+1
-
-    LDX cursor_y
-    BEQ yloop_done
-    .yloop
-    CLC
-    LDA scr_ptr
-    ADC #MODE7_char_width
-    STA scr_ptr
-    LDA scr_ptr+1
-    ADC #0
-    STA scr_ptr+1
-    DEX
-    BNE yloop
-    .yloop_done
+    STA cursor_addr+1
 
     .return
     RTS
@@ -626,14 +632,14 @@ GUARD &7C00
     LDA #14
     STA &FE00
     SEC
-    LDA scr_ptr+1
+    LDA cursor_addr+1
     SBC #&74
     EOR #&20
     STA &FE01
 
     LDA #15
     STA &FE00
-    LDA scr_ptr
+    LDA cursor_addr
     STA &FE01
 
     .return
@@ -643,11 +649,11 @@ GUARD &7C00
 .write_to_screen
 {
     PHA
-    JSR calc_scr_ptr
+    JSR calc_cursor_addr
     PLA
 
     LDY #0
-    STA (scr_ptr), Y
+    STA (cursor_addr), Y
 
     .return
     RTS
@@ -709,7 +715,7 @@ GUARD &7C00
     JSR move_cursor_right
     .not_right
 
-    JSR calc_scr_ptr
+    JSR calc_cursor_addr
     JSR set_cursor
     JMP return
 
@@ -810,9 +816,6 @@ GUARD &7C00
 
 \\ Menu actions
 
-.filename
-EQUS "$.TEST", 13
-
 .osfile_params
 {
     EQUW input_buffer
@@ -835,7 +838,8 @@ EQUS "$.TEST", 13
 }
 
 .input_buffer
-SKIP 30
+EQUS "HELLO", 13
+SKIP 24
 
 .input_params
 {
@@ -1015,7 +1019,7 @@ ENDMACRO
 {
     \\ Zero + 6 pixels
     KEY_TO_CHAR ' ', 0
-    KEY_TO_INVCHAR '@', 0
+    KEY_TO_INVCHAR 13, 0            ; return
     
     \\ One pixels
     KEY_TO_CHAR 'Q', PIXEL_TL
@@ -1104,17 +1108,22 @@ ENDMACRO
     KEY_TO_CHAR '/', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; top right curve
     KEY_TO_INVCHAR '?', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; invert
 
-    KEY_TO_CHAR '*', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
-    KEY_TO_INVCHAR ':', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
+    KEY_TO_CHAR '[', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
+    KEY_TO_INVCHAR ']', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; right vertical bar
 
     EQUB &FF
 }
 
-\\ Mapping of keys to screen?
-\\ If using actual key presses then need to store combinations, i.e. CTRL+
-\\ Better to store an ascii value with control codes for special keys
-\\ Main pain is fn keys which don't come through in osrdch but do with INKEY
-\\ Maybe should have done all this in BASIC?  :S
+\\ Look up tables
+.mode7_addr_y_HI
+FOR n,0,24,1
+EQUB HI(MODE7_scr_addr + n * MODE7_char_width)
+NEXT
+
+.mode7_addr_y_LO
+FOR n,0,24,1
+EQUB LO(MODE7_scr_addr + n * MODE7_char_width)
+NEXT
 
 .end
 
