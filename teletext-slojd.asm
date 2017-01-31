@@ -1,6 +1,8 @@
 \\ MODE 7 keystroke logging editor
 
 _LOAD_ON_START = FALSE
+_START_CANVAS_CENTRE = TRUE
+_COLOUR_LEFT_EDGE = TRUE
 
 \\ Include bbc.h
 BRKV=&202
@@ -24,6 +26,14 @@ MODE7_char_height = 25
 CANVAS_width = 80               ; can be upto 255
 CANVAS_height = 50              ; can be upto 255
 CANVAS_size = CANVAS_width * CANVAS_height
+
+IF _START_CANVAS_CENTRE
+CANVAS_default_x = (CANVAS_width - MODE7_char_width) / 2
+CANVAS_default_y = (CANVAS_height - MODE7_char_height) / 2
+ELSE
+CANVAS_default_x = 0
+CANVAS_default_y = 0            ; start top left
+ENDIF
 
 KEY_backspace = &7F
 KEY_cursor_up = &8B
@@ -441,8 +451,11 @@ GUARD &7C00
 .init_screen
 {
     LDA #0
-    STA cursor_x
     STA cursor_y
+    IF _COLOUR_LEFT_EDGE
+    LDA #1
+    ENDIF
+    STA cursor_x
 
     JSR clear_screen
     JSR update_cursor
@@ -465,8 +478,9 @@ GUARD &7C00
 \\ Clear canvas
 .init_canvas
 {
-    LDA #0
+    LDA #CANVAS_default_x
     STA canvas_x
+    LDA #CANVAS_default_y
     STA canvas_y
 
     LDA #LO(canvas_data)
@@ -530,6 +544,129 @@ GUARD &7C00
 }
 
 \\ Copy canvas to screen
+IF _COLOUR_LEFT_EDGE
+.copy_canvas_to_screen
+{
+    LDA #LO(canvas_data)
+    STA readptr
+    LDA #HI(canvas_data)
+    STA readptr+1
+
+    \\ Calculate start of canvas line
+
+    LDX canvas_y
+    BEQ yloop_done
+    .yloop
+    CLC
+    LDA readptr
+    ADC #CANVAS_width
+    STA readptr
+    LDA readptr+1
+    ADC #0
+    STA readptr+1
+    DEX
+    BNE yloop
+    .yloop_done
+
+    \\ Copy to
+    LDA #LO(MODE7_scr_addr)
+    STA writeptr
+    LDA #HI(MODE7_scr_addr)
+    STA writeptr+1
+
+    LDX #0
+
+    .line_loop
+
+    \\ Look for first colour code before canvas
+    LDY canvas_x
+    .search_loop
+    LDA (readptr), Y
+    CMP #TELETEXT_graphic_red
+    BCC try_alpha
+    CMP #TELETEXT_graphic_white+1
+    BCS try_alpha
+
+    \\ Found a graphics code
+    JMP found_colour
+
+    .try_alpha
+    CMP #TELETEXT_alpha_red
+    BCC continue
+    CMP #TELETEXT_alpha_white+1
+    BCS continue
+
+    \\ Found an alpha code
+    JMP found_colour
+
+    .continue
+    CPY #0
+    BEQ no_colour_found
+    DEY
+    JMP search_loop
+
+    .no_colour_found
+    LDA #32
+
+    .found_colour
+    \\ Save our colour code in column 0
+
+    LDY #0
+    STA (writeptr), Y
+
+    \\ Can't indirect index X so mod code
+    LDA writeptr
+    STA screen_write_addr+1
+    LDA writeptr+1
+    STA screen_write_addr+2
+
+    \\ Save X our row counter
+    STX row_count+1
+
+    \\ Start at column 1 on screen
+    LDX #1
+    LDY canvas_x
+
+    .copy_loop
+    LDA (readptr), Y        ; canvas
+    .screen_write_addr
+    STA &FFFF, X            ; screen
+
+    INY
+    INX
+
+    CPX #MODE7_char_width
+    BNE copy_loop
+
+    \\ Next line of both
+    \\ Next line of canvas
+    CLC
+    LDA readptr
+    ADC #CANVAS_width
+    STA readptr
+    LDA readptr+1
+    ADC #0
+    STA readptr+1
+    
+    \\ Next line of screen
+    CLC
+    LDA writeptr
+    ADC #MODE7_char_width
+    STA writeptr
+    LDA writeptr+1
+    ADC #0
+    STA writeptr+1
+
+    .row_count
+    LDX #0
+    INX
+    CPX #MODE7_char_height
+    BNE line_loop
+
+    .return
+    RTS
+}
+ELSE
 .copy_canvas_to_screen
 {
     JSR calc_canvas_addr
@@ -583,6 +720,7 @@ GUARD &7C00
     .return
     RTS
 }
+ENDIF
 
 \\ Editor fns
 
@@ -642,9 +780,18 @@ GUARD &7C00
 
     JSR calc_canvas_addr
 
+    IF _COLOUR_LEFT_EDGE
+    SEC
+    LDA cursor_x
+    SBC #1              ; actually 1, because cursor X can never be 0
+    CLC
+    ADC canvas_addr
+    ELSE
     CLC
     LDA canvas_addr
     ADC cursor_x
+    ENDIF
+
     STA writeptr
     LDA canvas_addr+1
     ADC #0
@@ -927,6 +1074,9 @@ GUARD &7C00
 .move_cursor_left
 {
     LDY cursor_x
+    IF _COLOUR_LEFT_EDGE
+    CPY #1
+    ENDIF
     BEQ left_edge
     DEY
     STY cursor_x
