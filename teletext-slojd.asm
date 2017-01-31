@@ -25,6 +25,7 @@ CANVAS_width = 80               ; can be upto 255
 CANVAS_height = 50              ; can be upto 255
 CANVAS_size = CANVAS_width * CANVAS_height
 
+KEY_backspace = &7F
 KEY_cursor_up = &8B
 KEY_cursor_down = &8A
 KEY_cursor_left = &88
@@ -744,7 +745,7 @@ GUARD &7C00
 .write_to_screen
 {
     \\ So we know where to write
-    PHA:PHA
+    PHA
     JSR calc_cursor_addr
     PLA
 
@@ -752,10 +753,6 @@ GUARD &7C00
     LDY #0
     STA (cursor_addr), Y
 
-    \\ Update cursor type
-    JSR update_cursor
-
-    PLA
     .return
     RTS
 }
@@ -786,7 +783,7 @@ GUARD &7C00
     RTS
 }
 
-.map_key_to_code
+.map_key_to_code                ; must preserve X
 {
     STX key_value+1
     LDY #0
@@ -813,7 +810,7 @@ GUARD &7C00
 
 .key_action_on_canvas
 {
-    \\ Check for special control keys
+    \\ Check for special keys
     CPX #&90
     BCS content_key
 
@@ -822,6 +819,7 @@ GUARD &7C00
 
     \\ Content key
     .content_key
+
     \\ Check keys for Teletext content codes first
     JSR map_key_to_code
     CMP #&FF
@@ -840,8 +838,21 @@ GUARD &7C00
     TXA
 
     .write_char
-    JSR write_to_screen
     JSR write_to_canvas
+    JSR write_to_screen
+
+    \\ Update cursor mode
+    JSR update_cursor
+
+    \\ Decide whether to move cursor
+    LDX cursor_mode
+    BEQ dont_move_cursor
+
+    \\ Move cursor right in alpha mode
+    JSR move_cursor_right
+    JSR update_cursor
+
+    .dont_move_cursor
     JMP return
 
     \\ Control keys, cursor etc.
@@ -858,7 +869,13 @@ GUARD &7C00
     CPX #KEY_cursor_right:BNE not_right
     JSR move_cursor_right
     .not_right
+    CPX #KEY_backspace:BNE not_backsp
+    JSR move_cursor_left
+    LDA #32
+    JSR write_to_canvas
+    JSR write_to_screen
 
+    .not_backsp
     JSR update_cursor
     JMP return
 
