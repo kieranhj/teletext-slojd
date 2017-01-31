@@ -54,6 +54,15 @@ FNKEY_shift_8 = &E8
 FNKEY_shift_9 = &E9
 
 FNKEY_ctrl_0 = &90
+FNKEY_ctrl_1 = &91
+FNKEY_ctrl_2 = &92
+FNKEY_ctrl_3 = &93
+FNKEY_ctrl_4 = &94
+FNKEY_ctrl_5 = &95
+FNKEY_ctrl_6 = &96
+FNKEY_ctrl_7 = &97
+FNKEY_ctrl_8 = &98
+FNKEY_ctrl_9 = &99
 
 TELETEXT_graphic_red = 145
 TELETEXT_graphic_green = 146
@@ -71,6 +80,16 @@ TELETEXT_alpha_magenta = 133
 TELETEXT_alpha_cyan = 134
 TELETEXT_alpha_white = 135
 
+TELETEXT_contiguous_graphics = 153
+TELETEXT_separated_graphics = 154
+TELETEXT_new_background = 157
+TELETEXT_black_background = 156
+TELETEXT_hold_graphics = 158
+TELETEXT_release_graphics = 159
+TELETEXT_normal_height = 140
+TELETEXT_double_height = 141
+TELETEXT_flash = 136
+TELETEXT_steady = 137
 
 ORG &70
 GUARD &8F
@@ -1275,7 +1294,7 @@ ENDMACRO
 
 .map_code_table
 {
-    \\ FN keys
+    \\ FN keys for graphic colour
     KEY_TO_CODE FNKEY_1, TELETEXT_graphic_red
     KEY_TO_CODE FNKEY_2, TELETEXT_graphic_green
     KEY_TO_CODE FNKEY_3, TELETEXT_graphic_yellow
@@ -1284,6 +1303,7 @@ ENDMACRO
     KEY_TO_CODE FNKEY_6, TELETEXT_graphic_cyan
     KEY_TO_CODE FNKEY_7, TELETEXT_graphic_white
 
+    \\ Shift FN keys for alpha colour
     KEY_TO_CODE FNKEY_shift_1, TELETEXT_alpha_red
     KEY_TO_CODE FNKEY_shift_2, TELETEXT_alpha_green
     KEY_TO_CODE FNKEY_shift_3, TELETEXT_alpha_yellow
@@ -1291,6 +1311,18 @@ ENDMACRO
     KEY_TO_CODE FNKEY_shift_5, TELETEXT_alpha_magenta
     KEY_TO_CODE FNKEY_shift_6, TELETEXT_alpha_cyan
     KEY_TO_CODE FNKEY_shift_7, TELETEXT_alpha_white
+
+    \\ Ctrl FN keys for all other teletext codes
+    KEY_TO_CODE FNKEY_ctrl_0, TELETEXT_black_background
+    KEY_TO_CODE FNKEY_ctrl_1, TELETEXT_new_background
+    KEY_TO_CODE FNKEY_ctrl_2, TELETEXT_contiguous_graphics
+    KEY_TO_CODE FNKEY_ctrl_3, TELETEXT_separated_graphics
+    KEY_TO_CODE FNKEY_ctrl_4, TELETEXT_steady
+    KEY_TO_CODE FNKEY_ctrl_5, TELETEXT_flash
+    KEY_TO_CODE FNKEY_ctrl_6, TELETEXT_normal_height
+    KEY_TO_CODE FNKEY_ctrl_7, TELETEXT_double_height
+    KEY_TO_CODE FNKEY_ctrl_8, TELETEXT_release_graphics
+    KEY_TO_CODE FNKEY_ctrl_9, TELETEXT_hold_graphics
 
     EQUB &FF
 }
