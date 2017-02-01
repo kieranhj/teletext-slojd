@@ -1479,6 +1479,7 @@ ENDMACRO
     KEY_TO_CHAR 'Q', PIXEL_TL
     KEY_TO_CHAR 'A', PIXEL_ML
     KEY_TO_CHAR 'Z', PIXEL_BL
+    
     KEY_TO_CHAR 'W', PIXEL_TR
     KEY_TO_CHAR 'S', PIXEL_MR
     KEY_TO_CHAR 'X', PIXEL_BR
@@ -1506,11 +1507,11 @@ ENDMACRO
 
     KEY_TO_CHAR 'Y', PIXEL_TL+PIXEL_MR
     KEY_TO_CHAR 'H', PIXEL_TL+PIXEL_BR
-    KEY_TO_CHAR 'N', PIXEL_BL+PIXEL_MR
+    KEY_TO_CHAR 'N', PIXEL_BR+PIXEL_ML
 
     KEY_TO_CHAR 'U', PIXEL_TR+PIXEL_ML
     KEY_TO_CHAR 'J', PIXEL_TR+PIXEL_BL
-    KEY_TO_CHAR 'M', PIXEL_BR+PIXEL_ML
+    KEY_TO_CHAR 'M', PIXEL_BL+PIXEL_MR
 
     \\ Four pixels
     KEY_TO_INVCHAR 'e', PIXEL_TL+PIXEL_TR
@@ -1527,43 +1528,49 @@ ENDMACRO
 
     KEY_TO_INVCHAR 'y', PIXEL_TL+PIXEL_MR
     KEY_TO_INVCHAR 'h', PIXEL_TL+PIXEL_BR
-    KEY_TO_INVCHAR 'n', PIXEL_BL+PIXEL_MR
+    KEY_TO_INVCHAR 'n', PIXEL_BR+PIXEL_ML
 
     KEY_TO_INVCHAR 'u', PIXEL_TR+PIXEL_ML
     KEY_TO_INVCHAR 'j', PIXEL_TR+PIXEL_BL
-    KEY_TO_INVCHAR 'm', PIXEL_BR+PIXEL_ML
+    KEY_TO_INVCHAR 'm', PIXEL_BL+PIXEL_MR
 
     \\ Three pixels
 
-    KEY_TO_CHAR 'I', PIXEL_TR+PIXEL_TL+PIXEL_ML         ; top left arrow
-    KEY_TO_INVCHAR 'i', PIXEL_TR+PIXEL_TL+PIXEL_ML      ; bottom right arrow
-
-    KEY_TO_CHAR 'O', PIXEL_TR+PIXEL_TL+PIXEL_MR         ; top right arrow
-    KEY_TO_INVCHAR 'i', PIXEL_TR+PIXEL_TL+PIXEL_MR      ; bottom left arrow
+    KEY_TO_CHAR 'I', PIXEL_MR+PIXEL_ML+PIXEL_BL         ; mid left up arrow
+    KEY_TO_INVCHAR 'i', PIXEL_MR+PIXEL_ML+PIXEL_BL      ; invert
 
     KEY_TO_CHAR 'K', PIXEL_TL+PIXEL_ML+PIXEL_MR         ; mid left down arrow
     KEY_TO_INVCHAR 'k', PIXEL_TL+PIXEL_ML+PIXEL_MR      ; invert
 
+    KEY_TO_CHAR ',', PIXEL_TR+PIXEL_TL+PIXEL_ML         ; top left arrow
+    KEY_TO_INVCHAR '<', PIXEL_TR+PIXEL_TL+PIXEL_ML      ; bottom right arrow
+
+    KEY_TO_CHAR 'O', PIXEL_MR+PIXEL_ML+PIXEL_BR         ; mid right up arrow
+    KEY_TO_INVCHAR 'o', PIXEL_MR+PIXEL_ML+PIXEL_BR      ; invert
+
     KEY_TO_CHAR 'L', PIXEL_TR+PIXEL_ML+PIXEL_MR         ; mid right down arrow
     KEY_TO_INVCHAR 'l', PIXEL_TR+PIXEL_ML+PIXEL_MR      ; invert
 
-    KEY_TO_CHAR ',', PIXEL_MR+PIXEL_ML+PIXEL_BL         ; mid left up arrow
-    KEY_TO_INVCHAR '<', PIXEL_MR+PIXEL_ML+PIXEL_BL      ; invert
-
-    KEY_TO_CHAR '.', PIXEL_MR+PIXEL_ML+PIXEL_BR         ; mid right up arrow
-    KEY_TO_INVCHAR '>', PIXEL_MR+PIXEL_ML+PIXEL_BR      ; invert
+    KEY_TO_CHAR '.', PIXEL_TR+PIXEL_TL+PIXEL_MR         ; top right arrow
+    KEY_TO_INVCHAR '>', PIXEL_TR+PIXEL_TL+PIXEL_MR      ; bottom left arrow
 
     KEY_TO_CHAR 'P', PIXEL_TR+PIXEL_ML+PIXEL_BL         ; top left curve
     KEY_TO_INVCHAR 'p', PIXEL_TR+PIXEL_ML+PIXEL_BL         ; invert
 
-    KEY_TO_CHAR ';', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; left face
-    KEY_TO_INVCHAR '+', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; invert
-            
-    KEY_TO_CHAR '/', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; top right curve
-    KEY_TO_INVCHAR '?', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; invert
+    KEY_TO_CHAR ';', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; top right curve
+    KEY_TO_INVCHAR '+', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; invert
 
-    KEY_TO_CHAR '[', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
-    KEY_TO_INVCHAR ']', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; right vertical bar
+
+    KEY_TO_CHAR '[', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; left face
+    KEY_TO_INVCHAR '{', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; left face
+    KEY_TO_INVCHAR ']', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; right face
+    KEY_TO_CHAR '}', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; right face
+
+    KEY_TO_CHAR '/', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
+    KEY_TO_INVCHAR '?', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; right vertical bar
+
+    KEY_TO_INVCHAR ':', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; right vertical bar
+    KEY_TO_CHAR '*', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
 
     EQUB &FF
 }
