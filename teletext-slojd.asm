@@ -3,6 +3,7 @@
 _LOAD_ON_START = FALSE
 _START_CANVAS_CENTRE = TRUE
 _COLOUR_LEFT_EDGE = TRUE
+_START_GRAPHICS_CANVAS = TRUE
 
 \\ Include bbc.h
 BRKV=&202
@@ -352,8 +353,8 @@ GUARD &7C00
 .enter_playback
 {
     \\ Initialise screen & canvas
-    JSR init_screen
     JSR init_canvas
+    JSR init_screen
 
     \\ Reset keystroke buffer pointer
     LDA #LO(keystroke_buffer)
@@ -411,7 +412,8 @@ GUARD &7C00
 
 .menu_text
 {
-    EQUS 30, "Teletext Slojd", 13,10
+   \\ EQUB 30           ; reset cursor top left
+    EQUS "Teletext Slojd", 13,10
     EQUS "1) Playback", 13,10
     EQUS "2) Save keystrokes", 13,10
     EQUS "3) Load keystrokes", 13,10
@@ -441,9 +443,52 @@ GUARD &7C00
     RTS
 }
 
+.hex_to_ascii
+{
+    EQUS "0123456789abcdef"
+}
+
+.bytes_free_text
+{
+    EQUS " bytes free", 13, 10, 0
+}
+
+.write_bytes_free
+{
+    SEC
+    LDA #HI(MODE7_scr_addr)
+    SBC keypress_ptr+1
+    STA readptr+1
+    LDA #LO(MODE7_scr_addr)
+    SBC keypress_ptr
+    STA readptr
+
+    LDA readptr+1
+    LSR A:LSR A:LSR A:LSR A
+    TAX:LDA hex_to_ascii, X:JSR oswrch
+    LDA readptr+1
+    AND #&F     
+    TAX:LDA hex_to_ascii, X:JSR oswrch
+    LDA readptr
+    LSR A:LSR A:LSR A:LSR A
+    TAX:LDA hex_to_ascii, X:JSR oswrch
+    LDA readptr
+    AND #&F     
+    TAX:LDA hex_to_ascii, X:JSR oswrch
+
+    LDX #LO(bytes_free_text)
+    LDY #HI(bytes_free_text)
+    JSR write_string
+
+    .return
+    RTS
+}
+
 .enter_menu
 {
     JSR clear_screen
+
+    JSR write_bytes_free
 
     LDX #LO(menu_text)
     LDY #HI(menu_text)
@@ -466,6 +511,7 @@ GUARD &7C00
     STA cursor_x
 
     JSR clear_screen
+    JSR copy_canvas_to_screen
     JSR update_cursor
 
     .return
@@ -499,6 +545,13 @@ GUARD &7C00
     LDX #0
     .yloop
     LDY #0
+
+    IF _START_GRAPHICS_CANVAS
+    LDA #TELETEXT_graphic_white
+    STA (writeptr), Y
+    INY
+    ENDIF
+
     LDA #32
 
     .xloop
