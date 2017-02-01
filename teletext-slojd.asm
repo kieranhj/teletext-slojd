@@ -217,7 +217,7 @@ GUARD &7C00
 
     \\ Toggle Menu
 
-    \\ Edit
+    \\ Editor mdde
     JSR editor_get_a_key
 
     CPX #&FF
@@ -226,7 +226,13 @@ GUARD &7C00
     CPX #27
     BEQ escape_pressed_in_editor
 
+    \\ Store our keypress
     JSR buffer_store_a_keypress
+
+    \\ Must have run out of buffer
+    CPX #27
+    BEQ escape_pressed_in_editor
+
     JMP act_on_key
 
     .handle_playback
@@ -365,6 +371,8 @@ GUARD &7C00
 
 .remove_last_keypress
 {
+    \\ Should probably error check here...
+
     LDA keypress_ptr
     BNE no_carry 
     DEC keypress_ptr+1
@@ -742,6 +750,23 @@ ENDIF
 
 .buffer_store_a_keypress
 {
+    \\ Check if we've reached the top of buffer
+    LDA keypress_ptr
+    CMP #LO(MODE7_scr_addr-1)
+    BNE ok_to_store
+    LDA keypress_ptr+1
+    CMP #HI(MODE7_scr_addr-1)
+    BCC ok_to_store
+
+    \\ Can store escape in last block
+    CPX #27
+    BEQ ok_to_store
+
+    \\ But otherwise don't store but flag back
+    LDX #27
+    RTS
+
+    .ok_to_store
     TXA
 
     LDY #0
