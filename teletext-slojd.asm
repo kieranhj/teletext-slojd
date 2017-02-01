@@ -453,28 +453,61 @@ GUARD &7C00
     EQUS " bytes free", 13, 10, 0
 }
 
+MACRO COUNT_16BIT ptr, value
+{
+    LDX #0
+    .loop
+    LDA ptr+1
+    CMP #HI(value)
+    BCC finished
+    BEQ test_lo
+
+    .continue
+    SEC
+    LDA ptr
+    SBC #LO(value)
+    STA ptr
+    LDA ptr+1
+    SBC #HI(value)
+    STA ptr+1
+    INX
+    JMP loop
+
+    .test_lo
+    LDA ptr
+    CMP #LO(value)
+    BCS continue 
+
+    .finished
+}
+ENDMACRO
+
 .write_bytes_free
 {
+    \\ Subtract our keypress pointer from top of memory
     SEC
-    LDA #HI(MODE7_scr_addr)
-    SBC keypress_ptr+1
-    STA readptr+1
     LDA #LO(MODE7_scr_addr)
     SBC keypress_ptr
     STA readptr
+    LDA #HI(MODE7_scr_addr)
+    SBC keypress_ptr+1
+    STA readptr+1
 
-    LDA readptr+1
-    LSR A:LSR A:LSR A:LSR A
-    TAX:LDA hex_to_ascii, X:JSR oswrch
-    LDA readptr+1
-    AND #&F     
-    TAX:LDA hex_to_ascii, X:JSR oswrch
-    LDA readptr
-    LSR A:LSR A:LSR A:LSR A
-    TAX:LDA hex_to_ascii, X:JSR oswrch
-    LDA readptr
-    AND #&F     
-    TAX:LDA hex_to_ascii, X:JSR oswrch
+    \\ Must be a better way to do this but anyway...
+    COUNT_16BIT readptr, 10000
+    LDA hex_to_ascii, X:JSR oswrch
+
+    COUNT_16BIT readptr, 1000
+    LDA hex_to_ascii, X:JSR oswrch
+
+    COUNT_16BIT readptr, 100
+    LDA hex_to_ascii, X:JSR oswrch
+
+    COUNT_16BIT readptr, 10
+    LDA hex_to_ascii, X:JSR oswrch
+
+    LDX readptr
+    LDA hex_to_ascii, X:JSR oswrch
 
     LDX #LO(bytes_free_text)
     LDY #HI(bytes_free_text)
