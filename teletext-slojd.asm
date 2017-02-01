@@ -688,6 +688,8 @@ IF _COLOUR_LEFT_EDGE
 
     \\ Look for first colour code before canvas
     LDY canvas_x
+    BEQ no_colour_found
+    DEY
     .search_loop
     LDA (readptr), Y
     CMP #TELETEXT_graphic_red
@@ -1472,7 +1474,6 @@ ENDMACRO
 {
     \\ Zero + 6 pixels
     KEY_TO_CHAR ' ', 0
-    KEY_TO_INVCHAR 13, 0            ; return
     
     \\ One pixels
     KEY_TO_CHAR 'Q', PIXEL_TL
@@ -1598,6 +1599,8 @@ ENDMACRO
     KEY_TO_CODE FNKEY_ctrl_7, TELETEXT_double_height
     KEY_TO_CODE FNKEY_ctrl_8, TELETEXT_release_graphics
     KEY_TO_CODE FNKEY_ctrl_9, TELETEXT_hold_graphics
+
+    KEY_TO_CODE 13, &7F            ; return = block
 
     EQUB &FF
 }
