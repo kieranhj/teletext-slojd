@@ -955,7 +955,7 @@ ENDIF
     STA readptr+1
     
     \\ Cursor type
-    LDX #18             ; line
+    LDX #0             ; line
 
     LDY cursor_x
     .loop
@@ -966,7 +966,7 @@ ENDIF
     BCS try_alpha
 
     \\ Found a graphics code
-    LDX #0
+    LDX #18
     JMP scanned_line
 
     .try_alpha
@@ -1106,7 +1106,7 @@ ENDIF
 
     \\ If we're in alpha mode just write it as is
     LDA cursor_mode
-    BNE alpha_mapping
+    BEQ alpha_mapping
 
     \\ If we're in graphics mode do fancy mapping
     JSR map_key_to_char
@@ -1123,7 +1123,7 @@ ENDIF
 
     \\ Decide whether to move cursor
     LDX cursor_mode
-    BEQ dont_move_cursor
+    BNE dont_move_cursor
 
     \\ Move cursor right in alpha mode
     JSR move_cursor_right
