@@ -36,6 +36,9 @@ CANVAS_default_x = 0
 CANVAS_default_y = 0            ; start top left
 ENDIF
 
+AUTOREPEAT_delay = 32
+AUTOREPEAT_period = 4
+
 KEY_backspace = &7F
 KEY_cursor_up = &8B
 KEY_cursor_down = &8A
@@ -165,6 +168,17 @@ GUARD &7C00
     \\ Turn ESCAPE into ascii
     LDA #229
     LDX #1
+    LDY #0
+    JSR osbyte
+
+    \\ Autorepeat config
+    LDA #11
+    LDX #AUTOREPEAT_delay
+    LDY #0
+    JSR osbyte
+
+    LDA #12
+    LDX #AUTOREPEAT_period
     LDY #0
     JSR osbyte
 
