@@ -4,6 +4,7 @@ _LOAD_ON_START = FALSE
 _START_CANVAS_CENTRE = TRUE
 _COLOUR_LEFT_EDGE = TRUE
 _START_GRAPHICS_CANVAS = TRUE
+_ENABLE_PIXEL_EDIT = TRUE
 
 \\ Include bbc.h
 BRKV=&202
@@ -28,6 +29,9 @@ CANVAS_width = 80               ; can be upto 255
 CANVAS_height = 50              ; can be upto 255
 CANVAS_size = CANVAS_width * CANVAS_height
 
+CURSOR_graphics_start = (64+0)       ; block
+CURSOR_alpha_start = (64+18)         ; line
+
 IF _START_CANVAS_CENTRE
 CANVAS_default_x = (CANVAS_width - MODE7_char_width) / 2
 CANVAS_default_y = (CANVAS_height - MODE7_char_height) / 2
@@ -44,6 +48,13 @@ KEY_cursor_up = &8B
 KEY_cursor_down = &8A
 KEY_cursor_left = &88
 KEY_cursor_right = &89
+
+KEY_pixel_TL = '-'
+KEY_pixel_TR = '^'
+KEY_pixel_ML = '@'
+KEY_pixel_MR = '['
+KEY_pixel_BL = ':'
+KEY_pixel_BR = ']'
 
 FNKEY_0 = &C0
 FNKEY_1 = &C1
@@ -125,7 +136,7 @@ GUARD &8F
 .canvas_addr SKIP 2             ; address of top-left corner of canvas
 
 .cursor_addr SKIP 2             ; screen address of cursor
-.cursor_mode SKIP 1             ; 0=graphics, non-zero=text
+.cursor_mode SKIP 1             ; 0=text, non-zero=graphics
 
 
 \\ ZP
@@ -971,7 +982,10 @@ ENDIF
     STA readptr+1
     
     \\ Cursor type
-    LDX #0             ; line
+    LDA #0
+    STA cursor_mode     ; assume alpha
+
+    LDX #CURSOR_alpha_start
 
     LDY cursor_x
     .loop
@@ -982,7 +996,10 @@ ENDIF
     BCS try_alpha
 
     \\ Found a graphics code
-    LDX #18
+    LDA #1
+    STA cursor_mode     ; set graphics
+
+    LDX #CURSOR_graphics_start
     JMP scanned_line
 
     .try_alpha
@@ -1005,7 +1022,6 @@ ENDIF
     \\ Solid cursor
     LDA #10
     STA &FE00
-    STX cursor_mode
     STX &FE01
 
     \\ Calc exact cursor address
@@ -1101,8 +1117,56 @@ ENDIF
     RTS
 }
 
+IF _ENABLE_PIXEL_EDIT
+.toggle_pixel
+{
+    PHA
+    JSR calc_cursor_addr
+
+    \\ Toggle pixel on screen
+
+    LDY #0
+    PLA
+    EOR (cursor_addr), Y
+    ORA #32
+    STA (cursor_addr), Y
+ 
+    \\ Write to canvas
+    JSR write_to_canvas
+
+    .return
+    RTS
+}
+ENDIF
+
 .key_action_on_canvas
 {
+    IF _ENABLE_PIXEL_EDIT
+    LDA cursor_mode
+    BEQ no_pixel_edit
+
+    CPX #KEY_pixel_TL:BNE not_TL
+    LDA #1:JMP toggle_pixel
+    .not_TL
+    CPX #KEY_pixel_TR:BNE not_TR
+    LDA #2:JMP toggle_pixel
+    .not_TR
+    CPX #KEY_pixel_ML:BNE not_ML
+    LDA #4:JMP toggle_pixel
+    .not_ML
+    CPX #KEY_pixel_MR:BNE not_MR
+    LDA #8:JMP toggle_pixel
+    .not_MR
+    CPX #KEY_pixel_BL:BNE not_BL
+    LDA #16:JMP toggle_pixel
+    .not_BL
+    CPX #KEY_pixel_BR:BNE not_BR
+    LDA #64:JMP toggle_pixel
+    .not_BR
+
+    .no_pixel_edit
+    ENDIF
+
     \\ Check for special keys
     CPX #&90
     BCS content_key
@@ -1561,16 +1625,13 @@ ENDMACRO
     KEY_TO_INVCHAR '+', PIXEL_TL+PIXEL_ML+PIXEL_BR         ; invert
 
 
-    KEY_TO_CHAR '[', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; left face
-    KEY_TO_INVCHAR '{', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; left face
-    KEY_TO_INVCHAR ']', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; right face
-    KEY_TO_CHAR '}', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; right face
+    KEY_TO_CHAR '_', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; left face
+    KEY_TO_INVCHAR '`', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; right face
+    KEY_TO_INVCHAR '\', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; right face
+    KEY_TO_CHAR '|', PIXEL_TR+PIXEL_ML+PIXEL_BR         ; left face
 
     KEY_TO_CHAR '/', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
     KEY_TO_INVCHAR '?', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; right vertical bar
-
-    KEY_TO_INVCHAR ':', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; right vertical bar
-    KEY_TO_CHAR '*', PIXEL_TL+PIXEL_ML+PIXEL_BL         ; left vertical bar
 
     EQUB &FF
 }
