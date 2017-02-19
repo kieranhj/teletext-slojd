@@ -5,6 +5,7 @@ _START_CANVAS_CENTRE = TRUE
 _COLOUR_LEFT_EDGE = TRUE
 _START_GRAPHICS_CANVAS = TRUE
 _ENABLE_PIXEL_EDIT = TRUE
+_PIXEL_EDIT_ONLY = FALSE
 
 \\ Include bbc.h
 BRKV=&202
@@ -24,9 +25,10 @@ argv = &F2
 MODE7_scr_addr = &7C00
 MODE7_char_width = 40
 MODE7_char_height = 25
+MODE7_scr_size = MODE7_char_width * MODE7_char_height
 
-CANVAS_width = 80               ; can be upto 255
-CANVAS_height = 50              ; can be upto 255
+CANVAS_width = 120               ; can be upto 255
+CANVAS_height = 75              ; can be upto 255
 CANVAS_size = CANVAS_width * CANVAS_height
 
 CURSOR_graphics_start = (64+0)       ; block
@@ -318,10 +320,15 @@ GUARD &7C00
 
     .not_3
     CPX #'4':BNE not_4
-    JSR new_are_you_sure
+    JSR save_screen
     JMP main_loop
 
     .not_4
+    CPX #'9':BNE not_9
+    JSR new_are_you_sure
+    JMP main_loop
+
+    .not_9
     CPX #'*':BNE not_star
     JSR star_command
     JMP main_loop
@@ -442,7 +449,8 @@ GUARD &7C00
     EQUS "1) Playback", 13,10
     EQUS "2) Save keystrokes", 13,10
     EQUS "3) Load keystrokes", 13,10
-    EQUS "4) New", 13,10
+    EQUS "4) Save screen", 13,10
+    EQUS "9) New canvas", 13,10
     EQUS "*) Command"
 }
 .menu_prompt
@@ -1185,11 +1193,13 @@ ENDIF
     \\ If not then its a regular key
 
     \\ If we're in alpha mode just write it as is
+    IF _PIXEL_EDIT_ONLY = FALSE
     LDA cursor_mode
     BEQ alpha_mapping
 
     \\ If we're in graphics mode do fancy mapping
     JSR map_key_to_char
+    ENDIF
 
     .alpha_mapping
     TXA
@@ -1362,6 +1372,51 @@ SKIP 24
     EQUB 127
 }
 
+.save_screen
+{
+    LDX #LO(save_text)
+    LDY #HI(save_text)
+    JSR write_string
+    
+    LDA #0
+    LDX #LO(input_params)
+    LDY #HI(input_params)
+    JSR osword
+
+    BCS return
+
+    JSR exit_menu
+
+	LDA #LO(MODE7_scr_addr)
+    STA osfile_params + 2
+	LDA #HI(MODE7_scr_addr)
+    STA osfile_params + 3
+
+	LDA #LO(MODE7_scr_addr)
+    STA osfile_params + 10
+	LDA #HI(MODE7_scr_addr)
+    STA osfile_params + 11
+
+    LDA #LO(MODE7_scr_addr + MODE7_scr_size)
+    STA osfile_params + 14
+    LDA #HI(MODE7_scr_addr + MODE7_scr_size)
+    STA osfile_params + 15
+    
+	LDX #LO(osfile_params)
+	LDY #HI(osfile_params)
+    LDA #0
+    JSR osfile
+
+    JMP enter_menu
+
+    .return
+    LDX #LO(menu_prompt)
+    LDY #HI(menu_prompt)
+    JSR write_string
+
+    RTS
+}
+
 .save_buffer
 {
     LDX #LO(save_text)
@@ -1463,6 +1518,12 @@ SKIP 24
 
 .error_handler
 {
+    LDA main_menu
+    BNE in_menu
+
+    JSR enter_menu
+
+    .in_menu
     LDX #LO(error_text)
     LDY #HI(error_text)
     JSR write_string
