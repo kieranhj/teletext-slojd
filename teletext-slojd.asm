@@ -1763,3 +1763,6 @@ PRINT "Keystroke start= ", ~keystroke_buffer
 PRINT "Keystroke max size= ", (&7C00 - keystroke_buffer)
 
 SAVE "TTSLOJD", start, end, main, start
+
+PUTFILE "$.raq2", &4600
+PUTFILE "$.raq3", &4600
