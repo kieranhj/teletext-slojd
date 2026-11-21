@@ -1,0 +1,90 @@
+Record every keystroke, including cursors
+Play back all strokes fixed time step
+Blank screen, just learn keys
+Obvious cursor position
+
+Need to be able to move the screen around canvas by scrolling off sides
+Do it without background colours?
+Just use foreground colour?
+Presume need alpha & graphics colour
+Keep first column free for control code
+
+Just blit current window to screen when scrolling (sw scroll)
+No timing on keypresses, just sequence
+One byte per keypress
+Size of canvas? 4x4 = 16k
+Need keystroke buffer - min 1 keystroke per character on screen
+Some sort of circular buffer dumped to disk automagically?
+
+Press Escape for menu
+- load from disk
+- save to disk
+- play animation
+- new (record)
+
+Start by doing simple version
+- fixed screen
+- recording keystrokes - done
+- replay keystrokes - done
+- save + load - done
+
+Then add scroll
+- vertical first - done
+- horizontal later - done
+
+f1-f7 - graphic colour - done
+(shift for alpha colour?)
+
+63 pixel combinations / inverted
+1+1 = 0 + 6 pixels
+6+6 = 1 + 5 pixels
+15+15 = 2 + 4 pixels
+19 = 3 pixels
+
+0 + 6 pixel combos
+space + ] (currently = return?)
+
+1 + 5 pixel combos
+qw
+as
+zx
+(shift to invert - 5 pixels)
+
+2 + 4 pixel combos
+edc - vertical bars
+rfv - top two left, split left, bottom two left
+tgb - top two right, split right, bottom two right
+yhn - top left diag, split left diag, bottom left diag
+ujm - top right diag, split right diag, bottom right diag
+
+3 pixel combos
+ik, - top left arrow, ?, top right arrow
+ol. - 
+p;/ - top right arrow, ?, bottom right arrow
+@ - vertical bar
+
+decisions:
+- insert or overtype (or ability to toggle that is recorded?)
+- backspace? - as expected? - done
+- return?  - maybe solid block? - done
+- start in centre of canvas? - done as compile option
+
+to dos:
+- default keymap for alpha mode - done
+- different cursor for alpha vs graphic mode - done
+- scroll preserves one control code on left edge - done
+- map other fn keys to something useful f0,f8,f9 - done
+- report keypress buffer space on menu - done
+- move lower in memory for more buffer space - Model B didn't seem to like it?
+- error handling for keypress buffer full - done
+
+bugs:
+- if you overwrite the colour code corresponding to the left column this doesn't get updated until scroll - done
+- getting a bit slow particularly with larger canvas
+- potentially have different cursors depending on whether alpha, graphics or control code already there?
+- might need to consider updating left edge when writing colour?
+
+add:
+- ability to save screen as a file (for export)
+- could allow screen import but would need to figure out how that goes into the keypress buffer?
+  (would likely have to be a "special key" that is followed by 1000 more special keys)
