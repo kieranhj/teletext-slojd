@@ -35,4 +35,4 @@ keys pick colours and letter keys map to sixel graphics. A 2017 6502 tool (beeba
   memory for a bigger buffer "Model B didn't seem to like it".
 
 ## See also
-- `teletext-slojd.txt` (notes). Related on D: `D:\beeb\mine\teletext-canvas`, `D:\beeb\mine\teletextr`.
+- `teletext-slojd.txt` (notes). Related on D: `D:\beeb\mine\teletext-canvas`, `D:\bitshifters\teletextr`.
